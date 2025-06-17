@@ -1,12 +1,11 @@
 from models import *
+import time #OPTIONAL
 import pandas as pd
 
+start_time = time.time() #OPTIONAL
 
 ## sets up file and renders only first one
-index =  np.random.randint(0, 3849)
-
-raw_file = "images/8bitRawXCT.tif"
-pred_file = "images/binaryPredicted.tif"
+index = 1234#np.random.randint(0, 3849)
 imgRaw = io.imread(raw_file)[index]
 imgPred = io.imread(pred_file)[index]
 
@@ -29,6 +28,7 @@ main_median_result = convert_to_binary(main_median_result)
 #median 3x3 rec for median filter - dani
 
 # Setting Graph
+#python pillow for imgs
 
 print(index)
 
@@ -69,6 +69,8 @@ metrics = {"Thresholding":[threshold_iou,threshold_f1], "Forest":[forest_iou,for
 df = pd.DataFrame(metrics,index=["IoU","F1/Dice"])
 print(df)
 
+end_time = time.time() #OPTIONAL
+print("It took ", end_time - start_time, " seconds") #OPTIONAL
 
 plt.show()
 
