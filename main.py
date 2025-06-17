@@ -5,9 +5,9 @@ import pandas as pd
 start_time = time.time() #OPTIONAL
 
 ## sets up file and renders only first one
-index = 1234#np.random.randint(0, 3849)
-imgRaw = io.imread(raw_file)[index]
-imgPred = io.imread(pred_file)[index]
+index = 1239#np.random.randint(0, 3849)
+imgRaw = raw_file[index]
+imgPred = pred_file[index]
 
 main_img_features = features_func(imgRaw)
 median_img_features = features_func(filters.median(imgRaw, morphology.footprint_rectangle((5,5))))
@@ -25,12 +25,13 @@ main_forest_result = convert_to_binary(main_forest_result)
 main_mlp_result = convert_to_binary(main_mlp_result)
 main_median_result = convert_to_binary(main_median_result)
 
+
 #median 3x3 rec for median filter - dani
 
 # Setting Graph
 #python pillow for imgs
 
-print(index)
+print("Index is ", index)
 
 f, ax = plt.subplots(3, 2, figsize=(16, 9))
 ax[0][0].imshow(imgRaw, cmap='gray')
