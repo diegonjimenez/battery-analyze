@@ -5,6 +5,7 @@ from skimage import io, filters, feature, future, morphology
 import pandas as pd
 from sklearn import metrics
 from skimage.transform import rescale
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from functools import partial
@@ -13,7 +14,12 @@ from tifffile import TiffFile
 
 #SEC 2: Setting up control vars
 
-future_index = 121#np.random.randint(0, 3849)
+#whether to display comparisons between one image or not
+classic = True
+num_test = 5
+
+train_indices, test_indices =  train_test_split(np.array(range(3849)),train_size=.7,test_size=.30)
+train_indices = train_indices[:2]
 
 downsample = 2
 sigma_min = 1
@@ -31,17 +37,30 @@ features_func = partial(
 # SEC 3: Setting up images
 raw_file = "images/8bitRawXCT.tif"
 pred_file = "images/binaryPredicted.tif"
+imgRaw = []
+imgPred = []
 rawImgStack = []
 predImgStack = []
 
-trainNum = np.array([0,751,980,2970]) #
+#yml
 
 with TiffFile(raw_file) as raw, TiffFile(pred_file) as pred:
-    imgRaw = raw.pages[future_index].asarray()
-    imgPred = pred.pages[future_index].asarray()
-    for x in range(len(trainNum)):
-       rawImgStack.append(raw.pages[trainNum[x]].asarray()[::downsample,::downsample] )
-       predImgStack.append(pred.pages[trainNum[x]].asarray()[::downsample,::downsample] )
+    if classic:
+        imgRaw = raw.pages[test_indices[0]].asarray()
+        imgPred = pred.pages[test_indices[0]].asarray()
+    else:
+        for x in range(num_test):
+            imgRaw.append(raw.pages[test_indices[x]].asarray() )
+            imgPred.append(pred.pages[test_indices[x]].asarray() )
+        imgRaw = np.array(imgRaw)
+        imgPred = np.array(imgPred)
+        plt.imshow(imgRaw[0])
+        plt.show()
+    for x in train_indices:
+       #plt.imshow(raw.pages[trainNum[x]].asarray()[::downsample,::downsample])
+       #plt.show()
+       rawImgStack.append(raw.pages[x].asarray()[::downsample,::downsample] )
+       predImgStack.append(pred.pages[x].asarray()[::downsample,::downsample] )
 
 predImgStack = np.vstack(predImgStack)
 rawImgStack = np.vstack(rawImgStack)
@@ -55,10 +74,9 @@ print("test_img_features shape is ", test_img_features.shape)
 
 #SEC 3: Models!
 
-print("Passed Section 1") #OPTIONAL
-
-# SEC 2
 def convert_to_binary(image):
+    if np.isin(image, [1, 2]).all():
+        return image-1
     edited = image
     for x in range(len(edited)):
         for y in range(len(edited[x])):
@@ -79,4 +97,3 @@ def forest_model():
     forest_clf = future.fit_segmenter(training_labels, test_img_features, forest_clf)
     print("Finished training forest")
     return forest_clf
-print("Passed Section 2")
