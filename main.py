@@ -1,76 +1,105 @@
 from models import *
-import time #OPTIONAL
+from sam import *
 
-start_time = time.time() #OPTIONAL
+#instantiating trained models from models.py
+forest_model = forest_model()
+mlp_model = mlp_model()
 
 
-#print("Index is ", index) #OPTIONAL
-if classic:
-    medianImg = filters.median(imgRaw, morphology.footprint_rectangle((3,3)))
-    # Sets up features for training
-    main_img_features = features_func(imgRaw)
-    median_img_features = features_func(medianImg)
+# Produces the segmentation results
+forest_results = []
+mlp_results = []
+threshold_results = []
+median_results = []
+sam_results = []
 
-    #Gets models and gets results for the diff methods
-    forest_model = forest_model()
-    mlp_model = mlp_model()
-    main_forest_result = future.predict_segmenter(main_img_features, forest_model)
-    main_mlp_result = future.predict_segmenter(main_img_features, mlp_model)
-    main_threshold_result = imgRaw > 235 #number from histogram misses a lot of dendrites but for the one it gets its confident #filters.threshold_otsu(imgRaw)
-    main_median_result = future.predict_segmenter(median_img_features, forest_model)
 
-    #converting the segmentations to binary for better accuracy on the metrics
-    main_forest_result = convert_to_binary(main_forest_result)
-    main_mlp_result = convert_to_binary(main_mlp_result)
-    main_median_result = convert_to_binary(main_median_result)
+for x in range(num_test):
+    img_feature = features_func(imgRaw[x])
+    median_features = features_func(filters.median(imgRaw[x] , morphology.footprint_rectangle((3,3))))
 
-    f, ax = plt.subplots(3, 2, figsize=(16, 9))
-    ax[0][0].imshow(imgRaw, cmap='gray')
-    ax[0][0].set_title("Raw Image")
+    forest_results.append(convert_to_binary( future.predict_segmenter(img_feature,forest_model)) )
+    mlp_results.append(convert_to_binary( future.predict_segmenter(img_feature,mlp_model)) )
+    threshold_results.append(imgRaw[x] > 235)
+    median_results.append(convert_to_binary(future.predict_segmenter(median_features, forest_model)))
+    sam_results.append(sam_predict( cv2.cvtColor(imgRaw[x], cv2.COLOR_GRAY2RGB)  ))
 
-    ax[0][1].imshow(imgPred,cmap = "gray")
-    ax[0][1].set_title("'Ground Truth' Image")
+# The following produces a plot for a comparison of one segmentation result
+f, ax = plt.subplots(3, 2, figsize=(16, 9))
+ax[0][0].imshow(imgRaw[0], cmap='cividis')
+ax[0][0].set_title("Raw Image")
 
-    ax[1][0].imshow(main_threshold_result,cmap='gray')
-    ax[1][0].set_title("Thresholded Image")
+ax[0][1].imshow(imgPred[0],cmap = "cividis")
+ax[0][1].set_title("'Ground Truth' Image")
 
-    ax[1][1].imshow(main_forest_result, cmap = "gray")
-    ax[1][1].set_title("Random Forest Image")
+ax[1][0].imshow(threshold_results[0],cmap='cividis')
+ax[1][0].set_title("Thresholded Image")
 
-    ax[2][0].imshow(main_mlp_result,cmap='gray')
-    ax[2][0].set_title("MLP Image")
+ax[1][1].imshow(forest_results[0], cmap = "cividis")
+ax[1][1].set_title("Random Forest Image")
 
-    ax[2][1].imshow(main_median_result, cmap = "gray")
-    ax[2][1].set_title("Forest w/ Median before")
-else:
-    print("owo")
+ax[2][0].imshow(mlp_results[0],cmap='cividis')
+ax[2][0].set_title("MLP Image")
+
+ax[2][1].imshow(sam_results[0], cmap = "cividis")
+ax[2][1].set_title("Sam")
+
+f.suptitle("Comparisons of One Image")
 
 #Determining metrics for each method
 
-threshold_precision = metrics.accuracy_score(imgPred.flatten(), main_threshold_result.flatten())
-forest_precision = metrics.accuracy_score(imgPred.flatten(), main_forest_result.flatten())
-mlp_precision = metrics.accuracy_score(imgPred.flatten(), main_mlp_result.flatten())
-median_precision = metrics.accuracy_score(imgPred.flatten(), main_median_result.flatten())
+precisions = {"threshold": [], "forest": [], "mlp":[], "median":[], "SAM":[]}
+ious = {"threshold": [], "forest": [], "mlp":[], "median":[], "SAM":[]}
+f1s = {"threshold": [], "forest": [], "mlp":[], "median":[], "SAM":[]}
 
 
-threshold_iou = metrics.jaccard_score(imgPred.flatten(), main_threshold_result.flatten(),average="binary")
-forest_iou = metrics.jaccard_score(imgPred.flatten(), main_forest_result.flatten(),average="binary")
-mlp_iou = metrics.jaccard_score(imgPred.flatten(), main_mlp_result.flatten(),average="binary")
-median_iou = metrics.jaccard_score(imgPred.flatten(), main_median_result.flatten(),average="binary")
+for x in range(num_test):
+    precisions["threshold"].append( metrics.accuracy_score(imgPred[x].flatten(), threshold_results[x].flatten()) )
+    precisions["forest"].append( metrics.accuracy_score(imgPred[x].flatten(), forest_results[x].flatten()) )
+    precisions["mlp"].append( metrics.accuracy_score(imgPred[x].flatten(), mlp_results[x].flatten()) )
+    precisions["median"].append( metrics.accuracy_score(imgPred[x].flatten(), median_results[x].flatten()) )
+    precisions["SAM"].append(metrics.accuracy_score(imgPred[x].flatten(), sam_results[x].flatten()))
 
-threshold_f1 = metrics.f1_score(imgPred.flatten(), main_threshold_result.flatten(),average="binary")
-forest_f1 = metrics.f1_score(imgPred.flatten(), main_forest_result.flatten(),average="binary")
-mlp_f1 = metrics.f1_score(imgPred.flatten(), main_mlp_result.flatten(),average="binary")
-median_f1 = metrics.f1_score(imgPred.flatten(), main_median_result.flatten(),average="binary")
+    ious["threshold"].append(metrics.jaccard_score(imgPred[x].flatten(), threshold_results[x].flatten(), average="binary"))
+    ious["forest"].append(metrics.jaccard_score(imgPred[x].flatten(), forest_results[x].flatten(), average="binary"))
+    ious["mlp"].append(metrics.jaccard_score(imgPred[x].flatten(), mlp_results[x].flatten(), average="binary"))
+    ious["median"].append(metrics.jaccard_score(imgPred[x].flatten(), median_results[x].flatten(), average="binary"))
+    ious["SAM"].append(metrics.jaccard_score(imgPred[x].flatten(), sam_results[x].flatten(), average="binary"))
+
+    f1s["threshold"].append(metrics.f1_score(imgPred[x].flatten(), threshold_results[x].flatten(), average="binary"))
+    f1s["forest"].append(metrics.f1_score(imgPred[x].flatten(), forest_results[x].flatten(), average="binary"))
+    f1s["mlp"].append(metrics.f1_score(imgPred[x].flatten(), mlp_results[x].flatten(), average="binary"))
+    f1s["median"].append(metrics.f1_score(imgPred[x].flatten(), median_results[x].flatten(), average="binary"))
+    f1s["SAM"].append(metrics.f1_score(imgPred[x].flatten(), sam_results[x].flatten(), average="binary"))
+
+threshold_precision = f" {round( np.average(precisions["threshold"]) ,3 )} ({round(np.std(precisions["threshold"]), 3) } sd)"
+forest_precision = f" {round(np.average(precisions["forest"]),3)} ({round(np.std(precisions["forest"]), 3)} sd)"
+mlp_precision = f"{round(np.average(precisions["mlp"]), 3)} ({round(np.std(precisions["mlp"]), 3)} sd)"
+median_precision = f"{round(np.average(precisions["median"]), 3)} ({round(np.std(precisions["median"]), 3)} sd)"
+SAM_precision = f"{round(np.average(precisions["SAM"]), 3)} ({round(np.std(precisions["SAM"]), 3)} sd)"
+
+threshold_iou = f"{round(np.average(ious["threshold"]), 3)} ({round(np.std(ious["threshold"]), 3)} sd)"
+forest_iou = f"{round(np.average(ious["forest"]), 3)} ({round(np.std(ious["forest"]), 3)} sd)"
+mlp_iou = f"{round(np.average(ious["mlp"]), 3)} ({round(np.std(ious["mlp"]), 3)} sd)"
+median_iou = f"{round(np.average(ious["median"]), 3)} ({round(np.std(ious["median"]), 3)} sd)"
+SAM_iou = f"{round(np.average(ious["SAM"]), 3)} ({round(np.std(ious["SAM"]), 3)} sd)"
+
+threshold_f1 = f"{round(np.average(f1s["threshold"]), 3)} ({round(np.std(f1s["threshold"]), 3)} sd)"
+forest_f1 = f"{round(np.average(f1s["forest"]), 3) } ({round(np.std(f1s["forest"]), 3)} sd)"
+mlp_f1 = f"{round(np.average(f1s["mlp"]), 3)} ({round(np.std(f1s["mlp"]), 3)} sd)"
+median_f1 = f"{round(np.average(f1s["median"]), 3)} ({round(np.std(f1s["median"]), 3)} sd)"
+SAM_f1 = f"{round(np.average(f1s["SAM"]), 3)} ({round(np.std(f1s["SAM"]), 3)} sd)"
+
+metrics = {"Thresholding":[threshold_precision,threshold_iou,threshold_f1], "Forest":[forest_precision,forest_iou,forest_f1],"MLP":[mlp_precision,mlp_iou,mlp_f1],"Median Forest":[median_precision,median_iou,median_f1],"SAM":[SAM_precision,SAM_iou,SAM_f1]}
 
 
-metrics = {"Thresholding":[threshold_precision,threshold_iou,threshold_f1], "Forest":[forest_precision,forest_iou,forest_f1],"MLP":[mlp_precision,mlp_iou,mlp_f1],"Median Forest":[median_precision,median_iou,median_f1]}
+if num_test >1:
+    score_names = ["mPrecision", "mIoU", "mF1/mDice"]
+else:
+    score_names = ["Precision","IoU","F1/Dice"]
 
-df = pd.DataFrame(metrics,index=["Precision","IoU","F1/Dice"])
+df = pd.DataFrame(metrics,index=score_names)
+df.to_csv('/Users/pureduck/Downloads/output.csv', index=True)
 print(df)
 
-end_time = time.time() #OPTIONAL
-print("It took ", end_time - start_time, " seconds") #OPTIONAL
-
 plt.show()
-
