@@ -1,19 +1,20 @@
-from models import *
-from sam import *
+from models import * #Sets up key variables and mlp and forest models for the segmentation
+from sam import * # Sets up SAM
 
-#instantiating trained models from models.py
+# instantiating trained models from models.py
 forest_model = forest_model()
 mlp_model = mlp_model()
 
 
-# Produces the segmentation results
+# Arrays containing the segmentation results
+# with num_test entries
 forest_results = []
 mlp_results = []
 threshold_results = []
 median_results = []
 sam_results = []
 
-
+#produces the segmentation results
 for x in range(num_test):
     img_feature = features_func(imgRaw[x])
     median_features = features_func(filters.median(imgRaw[x] , morphology.footprint_rectangle((3,3))))
@@ -26,33 +27,33 @@ for x in range(num_test):
 
 # The following produces a plot for a comparison of one segmentation result
 f, ax = plt.subplots(3, 2, figsize=(16, 9))
-ax[0][0].imshow(imgRaw[0], cmap='cividis')
+ax[0][0].imshow(imgRaw[0], cmap='Grays_r')
 ax[0][0].set_title("Raw Image")
 
-ax[0][1].imshow(imgPred[0],cmap = "cividis")
+ax[0][1].imshow(imgPred[0],cmap = "Grays_r")
 ax[0][1].set_title("'Ground Truth' Image")
 
-ax[1][0].imshow(threshold_results[0],cmap='cividis')
+ax[1][0].imshow(threshold_results[0],cmap='Grays_r')
 ax[1][0].set_title("Thresholded Image")
 
-ax[1][1].imshow(forest_results[0], cmap = "cividis")
+ax[1][1].imshow(forest_results[0], cmap = "Grays_r")
 ax[1][1].set_title("Random Forest Image")
 
-ax[2][0].imshow(mlp_results[0],cmap='cividis')
+ax[2][0].imshow(mlp_results[0],cmap='Grays_r')
 ax[2][0].set_title("MLP Image")
 
-ax[2][1].imshow(sam_results[0], cmap = "cividis")
+ax[2][1].imshow(sam_results[0], cmap = "Grays_r")
 ax[2][1].set_title("Sam")
 
 f.suptitle("Comparisons of One Image")
 
-#Determining metrics for each method
-
+# Dictionaries where name is the metric itself, the keys are the segmentation methods
+# and the value is an array containing the metric for each train result
 precisions = {"threshold": [], "forest": [], "mlp":[], "median":[], "SAM":[]}
 ious = {"threshold": [], "forest": [], "mlp":[], "median":[], "SAM":[]}
 f1s = {"threshold": [], "forest": [], "mlp":[], "median":[], "SAM":[]}
 
-
+# calculates the metric for each method on each test image
 for x in range(num_test):
     precisions["threshold"].append( metrics.accuracy_score(imgPred[x].flatten(), threshold_results[x].flatten()) )
     precisions["forest"].append( metrics.accuracy_score(imgPred[x].flatten(), forest_results[x].flatten()) )
@@ -72,6 +73,7 @@ for x in range(num_test):
     f1s["median"].append(metrics.f1_score(imgPred[x].flatten(), median_results[x].flatten(), average="binary"))
     f1s["SAM"].append(metrics.f1_score(imgPred[x].flatten(), sam_results[x].flatten(), average="binary"))
 
+#Gets the average of each metric
 threshold_precision = f" {round( np.average(precisions["threshold"]) ,3 )} ({round(np.std(precisions["threshold"]), 3) } sd)"
 forest_precision = f" {round(np.average(precisions["forest"]),3)} ({round(np.std(precisions["forest"]), 3)} sd)"
 mlp_precision = f"{round(np.average(precisions["mlp"]), 3)} ({round(np.std(precisions["mlp"]), 3)} sd)"
@@ -98,8 +100,10 @@ if num_test >1:
 else:
     score_names = ["Precision","IoU","F1/Dice"]
 
+#Produces metrics as a chart and downloads to chosen file path. varies off user
+download_path = '/Users/pureduck/Downloads/output.csv'
 df = pd.DataFrame(metrics,index=score_names)
-df.to_csv('/Users/pureduck/Downloads/output.csv', index=True)
+df.to_csv(download_path, index=True)
 print(df)
 
 plt.show()
