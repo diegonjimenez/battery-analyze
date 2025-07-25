@@ -1,7 +1,6 @@
 # Adapted from Segment Anything (https://github.com/facebookresearch/segment-anything)
 # Original License: Apache 2.0
-# Modified by [Your Name] for [Your Project Name]
-
+# Modified by Diego Jimenez for [Your Project Name]
 import os
 import cv2
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
@@ -15,10 +14,9 @@ from sam2.sam2_image_predictor import SAM2ImagePredictor
 
 
 def find_dendrite_points(img,is_colored,counter = 100, amp=20):
-    # SAM takes in positive and negative inputs in order to produce segmentation.
-    # Positive points is what is foreground, negative is background points.
     # This function uses a high threshold to find guaranteed dendrite points (pixels in the photo)
-    # then marks every counter-th dendrite pixel as input and every counter*amp-th non dendrite marks as negative input
+    # then marks every counter-th dendrite pixel as 1 and every counter*amp-th non dendrite marks as 0
+    #rewrite later
     input_points = []
     input_labels = []
     dend_count = counter
